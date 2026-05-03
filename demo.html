@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Energy Anomaly Detector | George Popa</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <style>
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #12121a;
+      --bg-card: #1a1a24;
+      --accent: #00d4aa;
+      --text-primary: #e8e8ed;
+      --text-secondary: #8a8a9a;
+      --border: rgba(255,255,255,0.08);
+      --warning: #ffaa00;
+      --critical: #ff3d71;
+      --success: #00d68f;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+    .header {
+      background: rgba(18,18,26,0.95);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-title { display: flex; align-items: center; gap: 0.75rem; }
+    .logo { font-size: 1.5rem; }
+    .header-title h1 { font-size: 1.25rem; font-weight: 600; }
+    .header-status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); }
+    .status-indicator { width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    .stat-label { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+    .stat-value { font-size: 2rem; font-weight: 700; color: var(--text-primary); }
+    .stat-value.warning { color: var(--warning); }
+    .stat-value.critical { color: var(--critical); }
+    .stat-value.success { color: var(--success); }
+    .stat-subtitle { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem; }
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 1rem;
+    }
+    @media (max-width: 1024px) { .main-grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-title { font-size: 1rem; font-weight: 600; }
+    .card-controls { display: flex; gap: 0.5rem; }
+    .card-controls button {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 0.25rem 0.75rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .card-controls button:hover, .card-controls button.active {
+      background: var(--accent);
+      color: var(--bg-primary);
+      border-color: var(--accent);
+    }
+    .chart-container { height: 400px; padding: 1rem; }
+    .anomaly-list { max-height: 450px; overflow-y: auto; }
+    .anomaly-item {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.2s;
+    }
+    .anomaly-item:hover { background: rgba(255,255,255,0.02); }
+    .anomaly-item:last-child { border-bottom: none; }
+    .anomaly-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
+    .anomaly-source { font-weight: 600; font-size: 0.9rem; }
+    .anomaly-badge {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .anomaly-badge.critical { background: rgba(255,61,113,0.2); color: var(--critical); }
+    .anomaly-badge.warning { background: rgba(255,170,0,0.2); color: var(--warning); }
+    .anomaly-badge.info { background: rgba(0,212,170,0.2); color: var(--success); }
+    .anomaly-desc { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+    .anomaly-meta { display: flex; gap: 1rem; font-size: 0.75rem; color: var(--text-secondary); }
+    .footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+    }
+    .footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-title">
+      <span class="logo">⚡</span>
+      <h1>Energy Anomaly Detector</h1>
+    </div>
+    <div class="header-status">
+      <div class="status-indicator"></div>
+      <span>System Online — Demo Mode</span>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Consumption (7 days)</div>
+        <div class="stat-value" id="stat-consumption">0.00 MWh</div>
+        <div class="stat-subtitle">Aggregated energy usage</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Active Anomalies</div>
+        <div class="stat-value" id="stat-anomalies">0</div>
+        <div class="stat-subtitle">Requiring attention</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Grid Health Score</div>
+        <div class="stat-value success" id="stat-health">0%</div>
+        <div class="stat-subtitle">Overall system status</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Anomalous Readings</div>
+        <div class="stat-value" id="stat-percent">0%</div>
+        <div class="stat-subtitle">Of total readings</div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Energy Consumption Over Time</span>
+          <div class="card-controls">
+            <button onclick="setRange(24)" id="btn-24">24h</button>
+            <button onclick="setRange(72)" id="btn-72">3d</button>
+            <button onclick="setRange(168)" id="btn-168" class="active">7d</button>
+          </div>
+        </div>
+        <div class="chart-container" id="chart"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Detected Anomalies</span>
+        </div>
+        <div class="anomaly-list" id="anomaly-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Built by <a href="https://github.com/georgepopadev-max" target="_blank">George Popa</a> — Full Stack Developer
+  </div>
+
+  <script>
+    // ========================================
+    // MOCK DATA - Iberdrola-style energy data
+    // ========================================
+    const SOURCES = [
+      { id: 'iberdrola-bilbao-north', name: 'Iberdrola Bilbao North', type: 'INDUSTRIAL' },
+      { id: 'iberdrola-bilbao-south', name: 'Iberdrola Bilbao South', type: 'COMMERCIAL' },
+      { id: 'iberdrola-vizcaya-hub', name: 'Iberdrola Vizcaya Hub', type: 'INDUSTRIAL' },
+      { id: 'iberdrola-durango-center', name: 'Iberdrola Durango Center', type: 'COMMERCIAL' },
+    ];
+
+    function generateReadings(hours = 168) {
+      const readings = [];
+      const now = Date.now();
+      const msPerHour = 3600000;
+      const sources = SOURCES;
+
+      sources.forEach(source => {
+        for (let h = hours; h >= 0; h--) {
+          const timestamp = now - (h * msPerHour);
+          const hourOfDay = new Date(timestamp).getHours();
+          const dayOfWeek = new Date(timestamp).getDay();
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+          // Base consumption varies by time and type
+          let base = source.type === 'INDUSTRIAL' ? 450 : 180;
+          if (isWeekend && source.type === 'INDUSTRIAL') base *= 0.4;
+          else if (isWeekend) base *= 0.7;
+
+          // Peak hours (8-18)
+          if (hourOfDay >= 8 && hourOfDay <= 18) base *= 1.3;
+          else if (hourOfDay >= 0 && hourOfDay < 6) base *= 0.5;
+
+          // Seasonal variation
+          const month = new Date(timestamp).getMonth();
+          if (month >= 5 && month <= 8) base *= 0.7; // Summer
+          else if (month >= 0 && month <= 1 || month === 11) base *= 1.4; // Winter
+
+          const noise = (Math.random() - 0.5) * base * 0.15;
+          let consumption = base + noise;
+
+          // Inject anomalies (roughly 5% of readings)
+          let anomalyScore = 0;
+          if (Math.random() < 0.05) {
+            anomalyScore = 0.4 + Math.random() * 0.6;
+            consumption *= 1 + anomalyScore * 0.8;
+          }
+
+          readings.push({
+            sourceId: source.id,
+            sourceName: source.name,
+            timestamp: new Date(timestamp).toISOString(),
+            consumptionKwh: Math.round(consumption * 100) / 100,
+            anomalyScore,
+          });
+        }
+      });
+
+      return readings;
+    }
+
+    function generateAnomalies(readings) {
+      return readings
+        .filter(r => r.anomalyScore > 0.35)
+        .map(r => {
+          let severity = 'INFO';
+          if (r.anomalyScore > 0.7) severity = 'CRITICAL';
+          else if (r.anomalyScore > 0.5) severity = 'WARNING';
+
+          const descriptions = {
+            CRITICAL: [
+              'Sustained consumption spike — possible equipment malfunction',
+              'Unusual load pattern detected — requires immediate inspection',
+            ],
+            WARNING: [
+              'Transient consumption spike — possible temporary overload',
+              'Elevated readings detected — monitoring recommended',
+            ],
+            INFO: [
+              'Minor deviation from baseline — within acceptable parameters',
+            ],
+          };
+          const descList = descriptions[severity];
+          return {
+            id: 'anomaly-' + Math.random().toString(36).substr(2, 9),
+            sourceName: r.sourceName,
+            severity,
+            description: descList[Math.floor(Math.random() * descList.length)],
+            timestamp: r.timestamp,
+            score: r.anomalyScore,
+            detectedAt: new Date().toISOString(),
+          };
+        })
+        .slice(0, 15);
+    }
+
+    // ========================================
+    // APP STATE
+    // ========================================
+    let currentRange = 168;
+    let allReadings = [];
+    let chart = null;
+
+    function initApp() {
+      allReadings = generateReadings(currentRange);
+      updateStats();
+      renderAnomalies();
+      initChart();
+      document.getElementById('btn-168').classList.add('active');
+    }
+
+    function updateStats() {
+      const relevant = allReadings.filter(r => r.anomalyScore <= 0.35);
+      const totalConsumption = allReadings.reduce((sum, r) => sum + r.consumptionKwh, 0) / 1000;
+      const activeAnomalies = allReadings.filter(r => r.anomalyScore > 0.35).length;
+      const percentAnomalous = (activeAnomalies / allReadings.length) * 100;
+      const gridHealth = Math.max(60, 100 - percentAnomalous * 3);
+
+      document.getElementById('stat-consumption').textContent = totalConsumption.toFixed(2) + ' MWh';
+      const anomaliesEl = document.getElementById('stat-anomalies');
+      anomaliesEl.textContent = activeAnomalies;
+      anomaliesEl.className = 'stat-value' + (activeAnomalies > 5 ? ' warning' : activeAnomalies > 10 ? ' critical' : '');
+      document.getElementById('stat-health').textContent = Math.round(gridHealth) + '%';
+      document.getElementById('stat-percent').textContent = percentAnomalous.toFixed(1) + '%';
+    }
+
+    function renderAnomalies() {
+      const anomalies = generateAnomalies(allReadings);
+      const list = document.getElementById('anomaly-list');
+      if (anomalies.length === 0) {
+        list.innerHTML = '<div class="anomaly-item info"><div class="anomaly-header"><span class="anomaly-source">No anomalies detected</span></div><div class="anomaly-desc">Grid operating within normal parameters</div></div>';
+        return;
+      }
+      list.innerHTML = anomalies.map(a => `
+        <div class="anomaly-item">
+          <div class="anomaly-header">
+            <span class="anomaly-source">${a.sourceName}</span>
+            <span class="anomaly-badge ${a.severity.toLowerCase()}">${a.severity}</span>
+          </div>
+          <div class="anomaly-desc">${a.description}</div>
+          <div class="anomaly-meta">
+            <span>${new Date(a.timestamp).toLocaleString()}</span>
+            <span>Score: ${(a.score * 100).toFixed(0)}%</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function initChart() {
+      chart = echarts.init(document.getElementById('chart'));
+      updateChart();
+      window.addEventListener('resize', () => chart.resize());
+    }
+
+    function updateChart() {
+      const sources = {};
+      allReadings.forEach(r => {
+        if (!sources[r.sourceId]) sources[r.sourceId] = { name: r.sourceName, data: [] };
+        sources[r.sourceId].data.push([r.timestamp, r.consumptionKwh]);
+      });
+
+      const colors = ['#00a8e8', '#ff6b35', '#00d68f', '#a855f7'];
+      const series = Object.entries(sources).map(([id, src], i) => ({
+        name: src.name,
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        itemStyle: { color: colors[i % colors.length] },
+        data: src.data,
+        markPoint: {
+          symbol: 'pin',
+          symbolSize: 45,
+          data: allReadings
+            .filter(r => r.sourceId === id && r.anomalyScore > 0.4)
+            .map(r => ({
+              coord: [r.timestamp, r.consumptionKwh],
+              itemStyle: { color: r.anomalyScore > 0.7 ? '#ff3d71' : '#ffaa00' },
+              tooltip: { formatter: `${(r.anomalyScore * 100).toFixed(0)}% anomaly` }
+            }))
+        }
+      }));
+
+      chart.setOption({
+        backgroundColor: 'transparent',
+        tooltip: {
+          trigger: 'axis',
+          backgroundColor: '#1a1f3a',
+          borderColor: '#2a3158',
+          textStyle: { color: '#ffffff' },
+        },
+        legend: { show: true, bottom: 0, textStyle: { color: '#8a8a9a' }, type: 'scroll' },
+        grid: { left: 60, right: 30, top: 20, bottom: 60 },
+        xAxis: { type: 'time', axisLine: { lineStyle: { color: '#2a3158' } }, axisLabel: { color: '#8a8a9a' }, splitLine: { show: false } },
+        yAxis: { type: 'value', name: 'kWh', nameTextStyle: { color: '#8a8a9a' }, axisLine: { lineStyle: { color: '#2a3158' } }, axisLabel: { color: '#8a8a9a' }, splitLine: { lineStyle: { color: '#2a3158', type: 'dashed' } } },
+        dataZoom: [{ type: 'inside', start: 0, end: 100 }, { type: 'slider', start: 0, end: 100, height: 20, bottom: 30, borderColor: '#2a3158', fillerColor: 'rgba(0,168,232,0.2)', handleStyle: { color: '#00a8e8' } }],
+        series,
+      }, true);
+    }
+
+    function setRange(hours) {
+      currentRange = hours;
+      allReadings = generateReadings(hours);
+      document.querySelectorAll('.card-controls button').forEach(b => b.classList.remove('active'));
+      document.getElementById('btn-' + hours).classList.add('active');
+      updateStats();
+      renderAnomalies();
+      updateChart();
+    }
+
+    document.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>
