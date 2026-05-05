@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, of, forkJoin } from 'rxjs';
 import { catchError, map, timeout, switchMap } from 'rxjs/operators';
-import { environment } from '../../environments/environment';
+import { environment } from '@env';
 import {
   MOCK_STATS,
   MOCK_ANOMALIES,
