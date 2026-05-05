@@ -1,0 +1,7 @@
+buildCommand: ./mvnw clean package -DskipTests
+startCommand: java -jar target/*.jar
+envVars:
+  - key: SPRING_PROFILES_ACTIVE
+    value: production
+  - key: CORS_ALLOWED_ORIGINS
+    value: https://*.vercel.app,http://localhost:4200

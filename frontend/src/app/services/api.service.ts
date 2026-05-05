@@ -1,6 +1,14 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Observable, of, forkJoin } from 'rxjs';
+import { catchError, map, timeout, switchMap } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
+import {
+  MOCK_STATS,
+  MOCK_ANOMALIES,
+  MOCK_ENERGY_READINGS,
+  MOCK_DATA_SOURCES
+} from './mock-data';
 
 export interface EnergyReading {
   id: string;
@@ -48,32 +56,75 @@ export interface DataSource {
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private http = inject(HttpClient);
+  private apiUrl = environment.apiUrl;
+  private readonly TIMEOUT_MS = 5000;
+
+  private handleError<T>(fallback: T) {
+    return (error: HttpErrorResponse | Error): Observable<T> => {
+      console.warn(`API call failed, using mock data: ${error.message || 'Unknown error'}`);
+      return of(fallback);
+    };
+  }
 
   initializeData(): Observable<any> {
-    return this.http.get('/api/init');
+    return this.http.post(`${this.apiUrl}/init`, {}).pipe(
+      timeout(this.TIMEOUT_MS),
+      catchError(this.handleError({ success: true, message: 'Mock init completed' }))
+    );
   }
 
   getConsumption(hours: number = 168): Observable<EnergyReading[]> {
-    return this.http.get<EnergyReading[]>(`/api/consumption?hours=${hours}`);
+    return this.http.get<EnergyReading[]>(`${this.apiUrl}/consumption?hours=${hours}`).pipe(
+      timeout(this.TIMEOUT_MS),
+      catchError(this.handleError(
+        MOCK_ENERGY_READINGS.filter(r => {
+          const readingTime = new Date(r.timestamp).getTime();
+          const now = Date.now();
+          const cutoff = now - hours * 60 * 60 * 1000;
+          return readingTime >= cutoff;
+        })
+      ))
+    );
   }
 
   getAnomalies(activeOnly: boolean = false): Observable<AnomalyEvent[]> {
-    return this.http.get<AnomalyEvent[]>(`/api/anomalies?activeOnly=${activeOnly}`);
+    return this.http.get<AnomalyEvent[]>(`${this.apiUrl}/anomalies?activeOnly=${activeOnly}`).pipe(
+      timeout(this.TIMEOUT_MS),
+      catchError(this.handleError(
+        activeOnly
+          ? MOCK_ANOMALIES.filter(a => a.resolvedAt === null)
+          : MOCK_ANOMALIES
+      ))
+    );
   }
 
   resolveAnomaly(anomalyId: string): Observable<AnomalyEvent[]> {
-    return this.http.post<AnomalyEvent[]>(`/api/anomalies/${anomalyId}/resolve`, {});
+    return this.http.post<AnomalyEvent[]>(`${this.apiUrl}/anomalies/${anomalyId}/resolve`, {}).pipe(
+      timeout(this.TIMEOUT_MS),
+      catchError(this.handleError(MOCK_ANOMALIES))
+    );
   }
 
   getStats(): Observable<DashboardStats> {
-    return this.http.get<DashboardStats>('/api/stats');
+    return this.http.get<DashboardStats>(`${this.apiUrl}/stats`).pipe(
+      timeout(this.TIMEOUT_MS),
+      catchError(this.handleError(MOCK_STATS))
+    );
   }
 
   getDataSources(): Observable<DataSource[]> {
-    return this.http.get<DataSource[]>('/api/sources');
+    return this.http.get<DataSource[]>(`${this.apiUrl}/sources`).pipe(
+      timeout(this.TIMEOUT_MS),
+      catchError(this.handleError(MOCK_DATA_SOURCES))
+    );
   }
 
   generateRealtimeReading(sourceId: string): Observable<EnergyReading> {
-    return this.http.get<EnergyReading>(`/api/anomalies/realtime?sourceId=${sourceId}`);
+    return this.http.get<EnergyReading>(`${this.apiUrl}/anomalies/realtime?sourceId=${sourceId}`).pipe(
+      timeout(this.TIMEOUT_MS),
+      catchError(this.handleError(
+        MOCK_ENERGY_READINGS.find(r => r.sourceId === sourceId) || MOCK_ENERGY_READINGS[0]
+      ))
+    );
   }
 }

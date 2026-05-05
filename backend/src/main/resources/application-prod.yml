@@ -34,3 +34,12 @@ logging:
   level:
     com.portafolio.energy: INFO
     org.springframework.web: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: production
+  h2:
+    console:
+      enabled: false
