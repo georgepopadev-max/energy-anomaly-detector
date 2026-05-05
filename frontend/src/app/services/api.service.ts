@@ -1,8 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Observable, of, forkJoin } from 'rxjs';
-import { catchError, map, timeout, switchMap } from 'rxjs/operators';
-import { environment } from 'src/environments/environment';
+import { Observable, of } from 'rxjs';
+import { catchError, timeout } from 'rxjs/operators';
 import {
   MOCK_STATS,
   MOCK_ANOMALIES,
@@ -56,8 +55,19 @@ export interface DataSource {
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private http = inject(HttpClient);
-  private apiUrl = environment.apiUrl;
+  private apiUrl = this.getApiUrl();
   private readonly TIMEOUT_MS = 5000;
+
+  private getApiUrl(): string {
+    // Try Vercel environment variable first, then fallback to relative path
+    if (typeof window !== 'undefined') {
+      const vercelUrl = (window as any).__VERCEL_ENV__?.API_URL_BACK;
+      if (vercelUrl) return vercelUrl;
+      // Fallback: use same origin for API calls
+      return window.location.origin;
+    }
+    return '';
+  }
 
   private handleError<T>(fallback: T) {
     return (error: HttpErrorResponse | Error): Observable<T> => {
