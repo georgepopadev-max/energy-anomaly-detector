@@ -22,6 +22,7 @@ public class DataGeneratorService {
 
     private final DataSourceRepository dataSourceRepository;
     private final EnergyReadingRepository energyReadingRepository;
+    private final WebSocketService webSocketService;
 
     private static final Random RANDOM = new Random(42);
 
@@ -42,22 +43,26 @@ public class DataGeneratorService {
             "Sevilla Sur", "Zaragoza Norte", "Malaga Costa", "Vigo Puerto"
     };
 
+    private static final Object initLock = new Object();
+
     @Transactional
     public void initializeDataSources() {
-        if (dataSourceRepository.count() == 0) {
-            List<DataSource> sources = new ArrayList<>();
-            for (int i = 0; i < SOURCE_NAMES.length; i++) {
-                DataSource source = DataSource.builder()
-                        .name(SOURCE_NAMES[i])
-                        .type(SOURCE_TYPES[i])
-                        .location(LOCATIONS[i])
-                        .status("ACTIVE")
-                        .createdAt(Instant.now())
-                        .build();
-                sources.add(source);
+        synchronized (initLock) {
+            if (dataSourceRepository.count() == 0) {
+                List<DataSource> sources = new ArrayList<>();
+                for (int i = 0; i < SOURCE_NAMES.length; i++) {
+                    DataSource source = DataSource.builder()
+                            .name(SOURCE_NAMES[i])
+                            .type(SOURCE_TYPES[i])
+                            .location(LOCATIONS[i])
+                            .status("ACTIVE")
+                            .createdAt(Instant.now())
+                            .build();
+                    sources.add(source);
+                }
+                dataSourceRepository.saveAll(sources);
+                log.info("Initialized {} data sources", sources.size());
             }
-            dataSourceRepository.saveAll(sources);
-            log.info("Initialized {} data sources", sources.size());
         }
     }
 
@@ -131,7 +136,10 @@ public class DataGeneratorService {
                 .build();
 
         reading = energyReadingRepository.save(reading);
-        return toDto(reading);
+        EnergyReadingDto dto = toDto(reading);
+        // Broadcast the new reading to WebSocket subscribers
+        webSocketService.broadcastReading(dto);
+        return dto;
     }
 
     public List<DataSourceDto> getAllDataSources() {

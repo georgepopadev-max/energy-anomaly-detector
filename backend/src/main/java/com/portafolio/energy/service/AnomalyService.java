@@ -24,6 +24,7 @@ public class AnomalyService {
     private final EnergyReadingRepository energyReadingRepository;
     private final AnomalyEventRepository anomalyEventRepository;
     private final AnomalyDetectionService anomalyDetectionService;
+    private final WebSocketService webSocketService;
 
     @Transactional
     public List<EnergyReadingDto> processAndDetectAnomalies() {
@@ -35,6 +36,7 @@ public class AnomalyService {
             readingsBySource.computeIfAbsent(reading.getSourceId(), k -> new ArrayList<>()).add(reading);
         }
 
+        List<AnomalyEvent> anomaliesToSave = new ArrayList<>();
         for (Map.Entry<UUID, List<EnergyReading>> entry : readingsBySource.entrySet()) {
             List<EnergyReading> sourceReadings = entry.getValue();
             sourceReadings.sort(Comparator.comparing(EnergyReading::getTimestamp));
@@ -70,14 +72,21 @@ public class AnomalyService {
                                     reading.getConsumptionKwh(), mean, score))
                             .detectedAt(Instant.now())
                             .build();
-                    anomalyEventRepository.save(anomaly);
+                    anomaliesToSave.add(anomaly);
                 }
+            }
+        }
+        if (!anomaliesToSave.isEmpty()) {
+            anomalyEventRepository.saveAll(anomaliesToSave);
+            // Broadcast each saved anomaly via WebSocket
+            for (AnomalyEvent anomaly : anomaliesToSave) {
+                webSocketService.broadcastAnomaly(toAnomalyDto(anomaly));
             }
         }
 
         processedReadings = energyReadingRepository.saveAll(processedReadings);
         log.info("Processed {} readings and detected {} anomalies", 
-                processedReadings.size(), anomalyEventRepository.count());
+                processedReadings.size(), anomaliesToSave.size());
         
         return processedReadings.stream().map(this::toDto).toList();
     }
