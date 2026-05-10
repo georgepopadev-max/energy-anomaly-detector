@@ -24,11 +24,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // SockJS fallback endpoint for WebSocket
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns(Arrays.asList("*"))
+                .setAllowedOriginPatterns("*")
                 .withSockJS();
         
         // Raw WebSocket endpoint (no SockJS)
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns(Arrays.asList("*"));
+                .setAllowedOriginPatterns("*");
     }
 }
