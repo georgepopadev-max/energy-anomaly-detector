@@ -30,3 +30,7 @@ npm-debug.log*
 
 # Test coverage
 coverage/
+# Java/Spring Boot
+backend/target/
+*.class
+*.jar
