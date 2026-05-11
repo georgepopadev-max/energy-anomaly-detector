@@ -8,4 +8,4 @@
  * No backend required - all features work out of the box!
  */
 export const USE_MOCK_DATA = true;
-export const MOCK_MODE_BANNER_MESSAGE = '🔧 Demo Mode - Running with simulated data for demonstration purposes';
+export const MOCK_MODE_BANNER_MESSAGE = '⚠️ DEMO PROJECT - All data is simulated for portfolio demonstration';

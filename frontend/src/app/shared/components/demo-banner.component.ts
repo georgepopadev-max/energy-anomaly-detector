@@ -9,28 +9,38 @@ import { USE_MOCK_DATA, MOCK_MODE_BANNER_MESSAGE } from '../../shared/constants'
   template: `
     @if (USE_MOCK_DATA) {
       <div class="demo-banner">
-        <span class="demo-icon">🔧</span>
-        <span class="demo-text">{{ MOCK_MODE_BANNER_MESSAGE }}</span>
+        <span class="banner-icon">⚠️</span>
+        <span class="banner-text">{{ MOCK_MODE_BANNER_MESSAGE }}</span>
+        <span class="banner-badge">FICTIONAL</span>
       </div>
     }
   `,
   styles: [`
     .demo-banner {
-      background: linear-gradient(90deg, #ff6b35 0%, #ff8c5a 100%);
-      color: #ffffff;
-      padding: 8px 16px;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      font-weight: 500;
-      font-size: 0.85rem;
+      gap: 12px;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-bottom: 2px solid #f39c12;
+      flex-shrink: 0;
     }
-    .demo-icon {
-      font-size: 1rem;
+    .banner-icon { font-size: 18px; }
+    .banner-text {
+      font-size: 13px;
+      color: #f39c12;
+      font-weight: 600;
     }
-    .demo-text {
-      letter-spacing: 0.3px;
+    .banner-badge {
+      background: #f39c1230;
+      color: #f39c12;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      border: 1px solid #f39c12;
     }
   `]
 })
