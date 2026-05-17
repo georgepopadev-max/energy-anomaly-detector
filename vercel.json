@@ -1,7 +1,7 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": "frontend/dist/energy-anomaly-detector",
-  "framework": null,
+  "outputDirectory": "frontend/dist/energy-anomaly-detector/browser",
+  "framework": "angular",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
